@@ -1,8 +1,45 @@
 name: Test Lightning Runner
-on: workflow_dispatch
-jobs: 
+
+on:
+  workflow_dispatch:
+
+jobs:
   test:
+    name: Stress Test CPU and RAM
     runs-on: [self-hosted, lightning-fast]
     steps:
-      - run: echo "Using Lightning Runner!"
- 
+      - name: Print runner info
+        run: |
+          echo "Running on Lightning Runner!"
+          echo "CPU Info:"
+          lscpu || cat /proc/cpuinfo
+          echo "Memory Info:"
+          free -h || cat /proc/meminfo
+
+      - name: Install stress-ng (Linux only)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y stress-ng
+
+      - name: Stress CPU for 30 seconds (4 workers)
+        if: runner.os == 'Linux'
+        run: |
+          echo "Starting CPU stress test..."
+          stress-ng --cpu 4 --timeout 30s
+
+      - name: Allocate 2GB of RAM for 30 seconds
+        if: runner.os == 'Linux'
+        run: |
+          echo "Starting RAM stress test..."
+          stress-ng --vm 2 --vm-bytes 1G --timeout 30s
+
+      - name: Combine CPU and RAM test
+        if: runner.os == 'Linux'
+        run: |
+          echo "Running combined CPU and RAM stress test..."
+          stress-ng --cpu 2 --vm 2 --vm-bytes 1G --timeout 30s
+
+      - name: Cleanup
+        if: always()
+        run: echo "Stress test completed on Lightning Runner ✅"
