@@ -5,41 +5,31 @@ on:
 
 jobs:
   test:
-    name: Stress Test CPU and RAM
+    name: Stress Test via Docker
     runs-on: [self-hosted, lightning-fast]
+    container:
+      image: polinux/stress-ng  # Docker Hub image with stress-ng installed
     steps:
-      - name: Print runner info
+      - name: Print system info inside container
         run: |
-          echo "Running on Lightning Runner!"
-          echo "CPU Info:"
-          lscpu || cat /proc/cpuinfo
-          echo "Memory Info:"
-          free -h || cat /proc/meminfo
+          echo "Running inside stress-ng container"
+          stress-ng --version
 
-      - name: Check if stress-ng is installed
-        run: |
-          if ! command -v stress-ng &> /dev/null; then
-            echo "⚠️ stress-ng not found. Please install it on the runner manually."
-            exit 1
-          else
-            echo "✅ stress-ng is available."
-          fi
-
-      - name: Stress CPU for 30 seconds (4 workers)
+      - name: CPU stress test (4 workers for 30s)
         run: |
           echo "Starting CPU stress test..."
           stress-ng --cpu 4 --timeout 30s
 
-      - name: Allocate 2GB of RAM for 30 seconds
+      - name: RAM stress test (2GB for 30s)
         run: |
           echo "Starting RAM stress test..."
           stress-ng --vm 2 --vm-bytes 1G --timeout 30s
 
-      - name: Combine CPU and RAM test
+      - name: Combined CPU and RAM stress test
         run: |
           echo "Running combined CPU and RAM stress test..."
           stress-ng --cpu 2 --vm 2 --vm-bytes 1G --timeout 30s
 
       - name: Cleanup
         if: always()
-        run: echo "Stress test completed on Lightning Runner ✅"
+        run: echo "Stress test completed inside container ✅"
