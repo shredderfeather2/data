@@ -5,31 +5,32 @@ on:
 
 jobs:
   test:
-    runs-on: [self-hosted, lightning-fast]
+    runs-on: ["self-hosted", "lightning-fast"]
+
     steps:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: Install numpy
+      - name: Install dependencies
         run: pip install numpy
 
       - name: Run matrix multiplication to stress CPU & RAM
         run: |
-          python -c "
-import numpy as np
-import time
+          python - << 'EOF'
+          import numpy as np
+          import time
 
-print('Creating large matrices...')
-a = np.random.rand(1000, 1000)
-b = np.random.rand(1000, 1000)
+          print('Creating large matrices...')
+          a = np.random.rand(1000, 1000)
+          b = np.random.rand(1000, 1000)
 
-print('Multiplying matrices...')
-start = time.time()
-c = np.dot(a, b)
-end = time.time()
+          print('Multiplying matrices...')
+          start = time.time()
+          c = np.dot(a, b)
+          end = time.time()
 
-print(f'Multiplication done in {end - start:.2f} seconds.')
-print(f'Result shape: {c.shape}')
-"
+          print(f'Multiplication done in {end - start:.2f} seconds.')
+          print(f'Result shape: {c.shape}')
+          EOF
