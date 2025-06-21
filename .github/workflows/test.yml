@@ -1,0 +1,8 @@
+name: Test Lightning Runner
+on: workflow_dispatch
+jobs: 
+  test:
+    runs-on: [self-hosted, lightning-fast]
+    steps:
+      - run: echo "Using Lightning Runner!"
+ 
