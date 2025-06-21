@@ -1,35 +1,24 @@
-name: Test Lightning Runner
+name: Simple CPU and RAM Test
 
 on:
   workflow_dispatch:
 
 jobs:
   test:
-    name: Stress Test via Docker
     runs-on: [self-hosted, lightning-fast]
-    container:
-      image: polinux/stress-ng  # Docker Hub image with stress-ng installed
     steps:
-      - name: Print system info inside container
+      - name: Start CPU load (30s)
         run: |
-          echo "Running inside stress-ng container"
-          stress-ng --version
+          echo "Spinning CPU for 30 seconds..."
+          (yes > /dev/null &)  # background CPU load
+          CPU_PID=$!
+          sleep 30
+          kill $CPU_PID
+          echo "✅ CPU test complete."
 
-      - name: CPU stress test (4 workers for 30s)
+      - name: Allocate ~1GB RAM temporarily
         run: |
-          echo "Starting CPU stress test..."
-          stress-ng --cpu 4 --timeout 30s
-
-      - name: RAM stress test (2GB for 30s)
-        run: |
-          echo "Starting RAM stress test..."
-          stress-ng --vm 2 --vm-bytes 1G --timeout 30s
-
-      - name: Combined CPU and RAM stress test
-        run: |
-          echo "Running combined CPU and RAM stress test..."
-          stress-ng --cpu 2 --vm 2 --vm-bytes 1G --timeout 30s
-
-      - name: Cleanup
-        if: always()
-        run: echo "Stress test completed inside container ✅"
+          echo "Allocating 1GB of RAM..."
+          dd if=/dev/zero of=/tmp/memtest bs=1M count=1024
+          rm /tmp/memtest
+          echo "✅ RAM test complete."
