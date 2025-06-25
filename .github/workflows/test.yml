@@ -5,7 +5,7 @@ on:
 
 jobs:
   test:
-    runs-on: ["self-hosted", "lightning-fast"] -
+    runs-on: ["self-hosted", "lightning-fast"] 
 
     steps:
       - name: Set up Python
