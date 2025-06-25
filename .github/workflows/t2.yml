@@ -1,0 +1,28 @@
+name: Self-hosted Runner Test
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test-self-hosted:
+    name: Run on Self-hosted Runner
+    runs-on: [self-hosted, lightning-fast]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Print runner info
+        run: |
+          echo "Running on self-hosted runner with label: lightning-fast"
+          echo "Hostname: $(hostname)"
+          echo "OS: $(uname -a)"
+
+      - name: Test environment
+        run: |
+          echo "Testing environment setup..."
+          node -v || echo "Node.js not installed"
+          python3 --version || echo "Python3 not installed"
