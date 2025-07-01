@@ -1,4 +1,4 @@
-name: LightningRunner Robustness Test
+name: LightningRunner Robustness Test (v3)
 
 on:
   push:
@@ -6,90 +6,95 @@ on:
   pull_request:
 
 jobs:
-  # 1. High concurrency: Run multiple jobs in parallel
+  # ───── 1. High-concurrency stress ─────
   high-concurrency:
-    runs-on: ["self-hosted","lightning-fast"]
+    runs-on: ["self-hosted", "lightning-fast"]
     strategy:
+      fail-fast: false
       matrix:
-        job_number: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]  # Run 10 at once
+        job_number: [1,2,3,4,5,6,7,8,9,10]
     steps:
       - name: Print job number and host info
         run: |
-          echo "Running high concurrency job #${{ matrix.job_number }}"
+          echo "High-concurrency job #${{ matrix.job_number }}"
           uname -a
 
-      - name: Sleep for staggered start
-        run: sleep $(( $RANDOM % 10 ))
+      - name: Staggered start
+        run: |
+          RAND_SLEEP=$(od -An -N2 -tu2 /dev/urandom | tr -d ' ')
+          SLEEP_SEC=$(( RAND_SLEEP % 10 ))
+          echo "Sleeping for $SLEEP_SEC seconds"
+          sleep "$SLEEP_SEC"
 
       - name: Simple build step
-        run: echo "Build completed for job #${{ matrix.job_number }}"
+        run: echo "Job #${{ matrix.job_number }} completed"
 
-  # 2. Large logs and artifact handling
+  # ───── 2. Large logs + artifact upload ─────
   large-artifacts-logs:
-    runs-on: ubuntu-latest
+    runs-on: ["self-hosted", "lightning-fast"]
     steps:
       - name: Generate large log
         run: |
-          for i in $(seq 1 10000); do echo "Log line $i: $(head -c 32 /dev/urandom | base64)"; done
-
-      - name: Generate large artifact
-        run: |
-          head -c 100M /dev/urandom > bigfile.bin
-
+          for i in $(seq 1 10000); do
+            printf "Log line %05d: %s\n" "$i" "$(head -c 32 /dev/urandom | base64)"
+          done
+      - name: Generate 100 MB artifact
+        run: head -c 100M /dev/urandom > bigfile.bin
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: bigfile
           path: bigfile.bin
 
-  # 3. Long-running job (simulate a 2-minute task)
+  # ───── 3. Long-running job (2 min) ─────
   long-running:
-    runs-on: ubuntu-latest
+    runs-on: ["self-hosted", "lightning-fast"]
     steps:
-      - name: Start long job
+      - name: Simulate 2-minute task
         run: |
-          echo "Starting long-running job"
+          echo "Starting long task (120 s)…"
           sleep 120
-          echo "Long job done"
+          echo "Long task completed"
 
-  # 4. Secrets handling and env leakage check
+  # ───── 4. Secrets handling / leak check ─────
   secrets-handling:
-    runs-on: ubuntu-latest
+    runs-on: ["self-hosted", "lightning-fast"]
     env:
       SECRET_TOKEN: ${{ secrets.SECRET_TOKEN }}
     steps:
-      - name: Echo secret to file, not stdout
-        run: |
-          echo $SECRET_TOKEN > secretfile.txt
-          echo "Secret written to file (should not be visible in logs)"
-      - name: Check for leakage in logs (should NOT print secret)
-        run: echo "This is a check. No secret should appear above."
+      - name: Write secret to file
+        run: echo "$SECRET_TOKEN" > secretfile.txt
+      - name: Confirm secret not echoed
+        run: echo "Secret stored safely; not displayed above."
 
-  # 5. Intentional failure for error reporting
+  # ───── 5. Intentional failure (continue) ─────
   error-reporting:
-    runs-on: ubuntu-latest
+    runs-on: ["self-hosted", "lightning-fast"]
+    continue-on-error: true
     steps:
-      - name: Run failing step
+      - name: Fail deliberately
         run: |
-          echo "This will fail!"
+          echo "This step intentionally fails to test error handling."
           exit 1
 
-  # 6. Large dependency install (cache stress)
+  # ───── 6. Dependency-install stress (Python) ─────
   dependency-stress:
-    runs-on: ubuntu-latest
+    runs-on: ["self-hosted", "lightning-fast"]
     steps:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install many packages
+      - name: Install heavy package set
         run: |
-          pip install numpy pandas scipy scikit-learn requests flask fastapi pillow matplotlib pytest jupyter
+          pip install \
+            numpy pandas scipy scikit-learn \
+            requests flask fastapi pillow matplotlib pytest jupyter
 
-  # 7. Artifact download & verification
+  # ───── 7. Artifact download / verification ─────
   artifact-download:
     needs: large-artifacts-logs
-    runs-on: ubuntu-latest
+    runs-on: ["self-hosted", "lightning-fast"]
     steps:
       - name: Download artifact
         uses: actions/download-artifact@v4
