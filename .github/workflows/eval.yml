@@ -7,23 +7,13 @@ on:
 
 jobs:
   test-matrix:
-    runs-on: ["self-hosted","lightning-fast"]
+    runs-on: ["self hosted","lightning-fast"]
     strategy:
       matrix:
         language: [python, node, go]
-        version:
-          - "python:3.11"
-          - "node:20"
-          - "golang:1.22"
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-
-      # Install key system dependencies
-      - name: Install System Libraries
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential curl wget git
 
       # Python setup
       - name: Setup Python
@@ -55,7 +45,6 @@ jobs:
       - name: Install Node Libraries
         if: matrix.language == 'node'
         run: |
-          npm install -g npm@latest
           npm install express lodash jest
 
       - name: Run Node.js Tests
@@ -75,8 +64,9 @@ jobs:
       - name: Install Go Libraries
         if: matrix.language == 'go'
         run: |
-          go install github.com/stretchr/testify@latest
-          go install github.com/sirupsen/logrus@latest
+          go mod init tempmod || true
+          go get github.com/stretchr/testify
+          go get github.com/sirupsen/logrus
 
       - name: Run Go Tests
         if: matrix.language == 'go'
