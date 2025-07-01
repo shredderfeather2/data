@@ -1,4 +1,4 @@
-name: LightningRunner CI Stress Test
+name: LightningRunner Robustness Test
 
 on:
   push:
@@ -6,81 +6,94 @@ on:
   pull_request:
 
 jobs:
-  test-matrix:
+  # 1. High concurrency: Run multiple jobs in parallel
+  high-concurrency:
     runs-on: ["self-hosted","lightning-fast"]
     strategy:
       matrix:
-        language: [python, node, go]
+        job_number: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]  # Run 10 at once
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - name: Print job number and host info
+        run: |
+          echo "Running high concurrency job #${{ matrix.job_number }}"
+          uname -a
 
-      # Python setup
+      - name: Sleep for staggered start
+        run: sleep $(( $RANDOM % 10 ))
+
+      - name: Simple build step
+        run: echo "Build completed for job #${{ matrix.job_number }}"
+
+  # 2. Large logs and artifact handling
+  large-artifacts-logs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate large log
+        run: |
+          for i in $(seq 1 10000); do echo "Log line $i: $(head -c 32 /dev/urandom | base64)"; done
+
+      - name: Generate large artifact
+        run: |
+          head -c 100M /dev/urandom > bigfile.bin
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bigfile
+          path: bigfile.bin
+
+  # 3. Long-running job (simulate a 2-minute task)
+  long-running:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start long job
+        run: |
+          echo "Starting long-running job"
+          sleep 120
+          echo "Long job done"
+
+  # 4. Secrets handling and env leakage check
+  secrets-handling:
+    runs-on: ubuntu-latest
+    env:
+      SECRET_TOKEN: ${{ secrets.SECRET_TOKEN }}
+    steps:
+      - name: Echo secret to file, not stdout
+        run: |
+          echo $SECRET_TOKEN > secretfile.txt
+          echo "Secret written to file (should not be visible in logs)"
+      - name: Check for leakage in logs (should NOT print secret)
+        run: echo "This is a check. No secret should appear above."
+
+  # 5. Intentional failure for error reporting
+  error-reporting:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run failing step
+        run: |
+          echo "This will fail!"
+          exit 1
+
+  # 6. Large dependency install (cache stress)
+  dependency-stress:
+    runs-on: ubuntu-latest
+    steps:
       - name: Setup Python
-        if: matrix.language == 'python'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
-      - name: Install Python Libraries
-        if: matrix.language == 'python'
+      - name: Install many packages
         run: |
-          pip install --upgrade pip
-          pip install numpy pandas pytest requests
+          pip install numpy pandas scipy scikit-learn requests flask fastapi pillow matplotlib pytest jupyter
 
-      - name: Run Python Tests
-        if: matrix.language == 'python'
-        run: |
-          python --version
-          python -c "import numpy, pandas, requests; print('Python libs OK')"
-          pytest || echo "pytest skipped (no tests)"
-
-      # Node.js setup
-      - name: Setup Node.js
-        if: matrix.language == 'node'
-        uses: actions/setup-node@v4
+  # 7. Artifact download & verification
+  artifact-download:
+    needs: large-artifacts-logs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
         with:
-          node-version: '20'
-
-      - name: Install Node Libraries
-        if: matrix.language == 'node'
-        run: |
-          npm install express lodash jest
-
-      - name: Run Node.js Tests
-        if: matrix.language == 'node'
-        run: |
-          node --version
-          node -e "require('express'); require('lodash'); console.log('Node libs OK')"
-          npx jest || echo "jest skipped (no tests)"
-
-      # Go setup
-      - name: Setup Go
-        if: matrix.language == 'go'
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-
-      - name: Install Go Libraries
-        if: matrix.language == 'go'
-        run: |
-          go mod init tempmod || true
-          go get github.com/stretchr/testify
-          go get github.com/sirupsen/logrus
-
-      - name: Run Go Tests
-        if: matrix.language == 'go'
-        run: |
-          go version
-          go test ./... || echo "go test skipped (no tests)"
-
-      # Artifact generation and upload
-      - name: Generate and Upload Artifact
-        run: |
-          echo "Test artifact for ${{ matrix.language }}" > artifact-${{ matrix.language }}.txt
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.language }}-artifact
-          path: artifact-${{ matrix.language }}.txt
+          name: bigfile
+      - name: Verify artifact size
+        run: ls -lh bigfile.bin
