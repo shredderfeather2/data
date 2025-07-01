@@ -1,44 +1,52 @@
 name: LightningRunner Parallel-Check
 
 on:
-  workflow_dispatch:        # run it manually or change to `push:` etc.
+  workflow_dispatch:       # run manually; change to "push:" if desired
 
 jobs:
-  # ─────────── Matrix fan-out ───────────
+  # ───────── 1. Fan-out matrix ─────────
   parallel-test:
     runs-on: ["self-hosted", "lightning-fast"]
     strategy:
       fail-fast: false
-      max-parallel: 9          # GitHub will schedule up to 9 at once
+      max-parallel: 9
       matrix:
         job_id: [1,2,3,4,5,6,7,8,9]
-    outputs:
-      host-${{ matrix.job_id }}: ${{ steps.capture.outputs.host }}
-      start-${{ matrix.job_id }}: ${{ steps.capture.outputs.start }}
+
     steps:
       - name: Capture host & timestamp
-        id: capture
         run: |
           HOST=$(hostname)
           START=$(date '+%H:%M:%S')
-          echo "Running job ${{ matrix.job_id }} on $HOST at $START"
-          echo "::set-output name=host::$HOST"
-          echo "::set-output name=start::$START"
+          echo "job=${{ matrix.job_id }}"   >  result.txt
+          echo "host=${HOST}"              >> result.txt
+          echo "start=${START}"            >> result.txt
+          cat  result.txt                  # show in logs
 
       - name: Simulate 30-second workload
         run: sleep 30
 
-  # ─────────── Collect & print results ───────────
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: result-${{ matrix.job_id }}
+          path: result.txt
+
+  # ───────── 2. Fan-in summary ─────────
   summarise:
     needs: parallel-test
     runs-on: ubuntu-latest
     steps:
-      - name: Show which host ran which job
+      - name: Download all result artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: result-*                # grab all nine
+
+      - name: Print table
         run: |
-          echo "Job  Host        StartTime"
-          echo "---- ----------- ----------"
-          for i in {1..9}; do
-            HOST=$(echo "${{ needs.parallel-test.outputs['host-'$i] }}")
-            START=$(echo "${{ needs.parallel-test.outputs['start-'$i] }}")
-            printf "%-4s %-11s %s\n" "$i" "$HOST" "$START"
+          printf "%-4s %-15s %s\n" "Job" "Host" "StartTime"
+          printf "%-4s %-15s %s\n" "----" "---------------" "---------"
+          for f in result-*/result.txt; do
+            source "$f"   # sets $job, $host, $start
+            printf "%-4s %-15s %s\n" "$job" "$host" "$start"
           done
