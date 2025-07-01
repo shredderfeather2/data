@@ -1,4 +1,4 @@
-name: LightningRunner Robustness Test (v3)
+name: LightningRunner Robustness Test (v4)
 
 on:
   push:
@@ -6,99 +6,84 @@ on:
   pull_request:
 
 jobs:
-  # ───── 1. High-concurrency stress ─────
+# ─────────── 1. High-concurrency stress ───────────
   high-concurrency:
-    runs-on: ["self-hosted", "lightning-fast"]
+    runs-on: ["self-hosted","lightning-fast"]
     strategy:
       fail-fast: false
       matrix:
         job_number: [1,2,3,4,5,6,7,8,9,10]
     steps:
-      - name: Print job number and host info
+      - name: Identify runner
         run: |
-          echo "High-concurrency job #${{ matrix.job_number }}"
-          uname -a
-
-      - name: Staggered start
+          echo "Job #${{ matrix.job_number }} on $(uname -a)"
+      - name: Stagger start (fixed 2 s)
         run: |
-          RAND_SLEEP=$(od -An -N2 -tu2 /dev/urandom | tr -d ' ')
-          SLEEP_SEC=$(( RAND_SLEEP % 10 ))
-          echo "Sleeping for $SLEEP_SEC seconds"
-          sleep "$SLEEP_SEC"
+          echo "Sleeping 2 seconds"
+          sleep 2
+      - name: Dummy build
+        run: echo "Job #${{ matrix.job_number }} finished OK"
 
-      - name: Simple build step
-        run: echo "Job #${{ matrix.job_number }} completed"
-
-  # ───── 2. Large logs + artifact upload ─────
+# ─────────── 2. Large logs + artifact upload ───────────
   large-artifacts-logs:
-    runs-on: ["self-hosted", "lightning-fast"]
+    runs-on: ["self-hosted","lightning-fast"]
     steps:
-      - name: Generate large log
+      - name: Generate 10 000-line log
         run: |
           for i in $(seq 1 10000); do
-            printf "Log line %05d: %s\n" "$i" "$(head -c 32 /dev/urandom | base64)"
+            printf "Log line %05d\n" "$i"
           done
       - name: Generate 100 MB artifact
         run: head -c 100M /dev/urandom > bigfile.bin
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: bigfile
           path: bigfile.bin
 
-  # ───── 3. Long-running job (2 min) ─────
+# ─────────── 3. Long-running job (2 min) ───────────
   long-running:
-    runs-on: ["self-hosted", "lightning-fast"]
+    runs-on: ["self-hosted","lightning-fast"]
     steps:
-      - name: Simulate 2-minute task
-        run: |
-          echo "Starting long task (120 s)…"
-          sleep 120
-          echo "Long task completed"
+      - run: |
+          echo "Start 120-second task"; sleep 120; echo "Task done"
 
-  # ───── 4. Secrets handling / leak check ─────
+# ─────────── 4. Secrets handling ───────────
   secrets-handling:
-    runs-on: ["self-hosted", "lightning-fast"]
+    runs-on: ["self-hosted","lightning-fast"]
     env:
       SECRET_TOKEN: ${{ secrets.SECRET_TOKEN }}
     steps:
       - name: Write secret to file
         run: echo "$SECRET_TOKEN" > secretfile.txt
-      - name: Confirm secret not echoed
-        run: echo "Secret stored safely; not displayed above."
+      - run: echo "Secret stored (not printed)."
 
-  # ───── 5. Intentional failure (continue) ─────
+# ─────────── 5. Intentional failure (continue) ───────────
   error-reporting:
-    runs-on: ["self-hosted", "lightning-fast"]
+    runs-on: ["self-hosted","lightning-fast"]
     continue-on-error: true
     steps:
-      - name: Fail deliberately
-        run: |
-          echo "This step intentionally fails to test error handling."
+      - run: |
+          echo "Intentional failure test"
           exit 1
 
-  # ───── 6. Dependency-install stress (Python) ─────
+# ─────────── 6. Dependency-install stress ───────────
   dependency-stress:
-    runs-on: ["self-hosted", "lightning-fast"]
+    runs-on: ["self-hosted","lightning-fast"]
     steps:
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install heavy package set
-        run: |
+      - run: |
           pip install \
             numpy pandas scipy scikit-learn \
             requests flask fastapi pillow matplotlib pytest jupyter
 
-  # ───── 7. Artifact download / verification ─────
+# ─────────── 7. Artifact download & verify ───────────
   artifact-download:
     needs: large-artifacts-logs
-    runs-on: ["self-hosted", "lightning-fast"]
+    runs-on: ["self-hosted","lightning-fast"]
     steps:
-      - name: Download artifact
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           name: bigfile
-      - name: Verify artifact size
-        run: ls -lh bigfile.bin
+      - run: ls -lh bigfile.bin
