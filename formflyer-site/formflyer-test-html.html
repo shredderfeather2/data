@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FormFlyer AI - Test Page</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container" style="text-align: center; padding: 100px 20px;">
+        <h1 class="hero-title">Test Page</h1>
+        <p class="hero-description" style="max-width: 600px; margin: 0 auto;">
+            If you can see this page with proper styling, your FormFlyer AI website is set up correctly!
+        </p>
+        
+        <div style="margin-top: 40px;">
+            <h2 style="color: var(--blue-400); margin-bottom: 20px;">✓ Files Loaded Successfully</h2>
+            <ul style="list-style: none; text-align: left; display: inline-block; color: var(--slate-300);">
+                <li id="html-check">◯ HTML - Loading...</li>
+                <li id="css-check">◯ CSS - Loading...</li>
+                <li id="js-check">◯ JavaScript - Loading...</li>
+            </ul>
+        </div>
+        
+        <div style="margin-top: 40px;">
+            <a href="index.html" class="hero-cta" style="text-decoration: none; display: inline-block;">
+                Go to Main Site
+            </a>
+        </div>
+    </div>
+    
+    <script>
+        // Test if files are loading correctly
+        document.getElementById('html-check').innerHTML = '✓ HTML - Loaded';
+        document.getElementById('html-check').style.color = 'var(--emerald-400)';
+        
+        // Check if CSS loaded
+        if (document.styleSheets.length > 0) {
+            document.getElementById('css-check').innerHTML = '✓ CSS - Loaded';
+            document.getElementById('css-check').style.color = 'var(--emerald-400)';
+        }
+        
+        // Load main script
+        const script = document.createElement('script');
+        script.src = 'script.js';
+        script.onload = function() {
+            document.getElementById('js-check').innerHTML = '✓ JavaScript - Loaded';
+            document.getElementById('js-check').style.color = 'var(--emerald-400)';
+        };
+        script.onerror = function() {
+            document.getElementById('js-check').innerHTML = '✗ JavaScript - Failed';
+            document.getElementById('js-check').style.color = 'var(--red-400)';
+        };
+        document.body.appendChild(script);
+    </script>
+</body>
+</html>
