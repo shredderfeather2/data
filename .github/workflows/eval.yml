@@ -1,4 +1,4 @@
-name: LightningRunner Parallel-Check
+name: LightningRunner Parallel-Check 
 
 on:
   workflow_dispatch:       # run manually; change to "push:" if desired
